@@ -1,4 +1,4 @@
-const requestURL = 'http://127.0.0.1:5000/';
+const requestURL = 'http://23.254.167.151/udalign/';
 
 // For testing
 const parse1 = `# sent_id = n01001013
