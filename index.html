@@ -1,0 +1,61 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css"/>
+    <style>
+      #mynetwork {
+        border: 1px solid gray;
+        margin: 2px;
+        display: flex;
+      }
+      .parse {
+        border: 1px solid gray;
+        padding: 20px;
+        margin: 2px;
+        font-family: monospace;
+        overflow: scroll;
+      }
+      .form {
+        border: 1px solid gray;
+        padding: 10px;
+        padding-left: 20px;
+        margin: 2px;
+      }
+      p {
+        margin-top: 3px;
+        margin-bottom: 7px;
+      }
+    </style>
+  </head>
+  <body style="display: grid; grid-template-columns: 50% 50%; grid-template-rows: 100px 250px 100px 700px;">
+    <div class="form" id="form1" style="grid-column: 1/2; grid-row: auto;">
+      <p>Select corpus: <select name="corpus" id="selectCorpus"></select> <button onclick="chooseCorpus();">Retrieve sentences</button></p>
+    </div>
+    <div class="form" id="form2" style="grid-column: 2/3; grid-row: auto;">
+      <p>Select sentence by number (from 1 to 1000): <input type="text" id="sentenceNum"/> <button onclick="showSentenceByNum();">Show sentence</button></p>
+      <p style="margin-top: 17px;"><button onclick="prevSentence();">&lt;&lt; Previous sentence</button><button onclick="nextSentence();">Next sentence &gt;&gt;</button></p>
+    </div>
+
+    <div class="parse" id="parse1" style="grid-column: 1/2; grid-row: auto;">Parse 1</div>
+    <div class="parse" id="parse2" style="grid-column: 2/3; grid-row: auto;">Parse 2</div>
+    
+    <div id="form3" class="form" style="border: 0; grid-column: 1/3; grid-row: auto; display: grid; grid-template-columns: 1fr 350px 1fr;">
+      <div style="grid-column: 1/2; grid-row: auto;"></div>
+      <div style="grid-column: 2/3; grid-row: auto; display: grid; grid-template-columns: 1fr 1fr;">
+        <div style="grid-column: 1/2">
+          <button onclick="updateAlignment();" style="width: 160px;">Update alignment</button> <button onclick="clearAlignment();" style="width: 160px;">Clear alignment (locally)</button>
+        </div>
+        <div style="grid-column: 2/3">
+          <label><input type="radio" value="1" name="verified">Verified</label><br/>
+          <label><input type="radio" value="0" name="verified">Not verified</label>
+        </div>
+      </div>
+      <div style="grid-column: 3/4; grid-row: auto;"></div>
+    </div>
+
+    <div id="mynetwork" style="grid-column: 1/3; grid-row: auto;">Canvas</div>
+    <script type="text/javascript" src="main.js"></script>
+  </body>
+</html>
