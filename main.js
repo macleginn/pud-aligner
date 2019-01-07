@@ -1,4 +1,5 @@
-const requestURL = 'http://23.254.167.151/udalign/';
+const requestURL = 'http://127.0.0.1:5000/';
+// const requestURL = 'http://23.254.167.151/udalign/';
 
 // For testing
 const parse1 = `# sent_id = n01001013
@@ -63,6 +64,8 @@ function chooseCorpus() {
 }
 
 function showSentenceByNum() {
+  window.nodeIDs = new Set();
+  window.unaligned = new Set();
   window.sentenceNum = parseInt($('#sentenceNum').val());
   let index = window.sentenceNum-1,
       request = $.get(
@@ -123,6 +126,7 @@ function addUDParse(parseString, nodes, edges, layer) {
     let fields = lines[i].split('\t'),
         id = layer+fields[0],
         label = fields[1];
+    window.nodeIDs.add(id);
     if (layer === 'top')
       topNodes.add(id);
     else
@@ -155,18 +159,42 @@ function addUDParse(parseString, nodes, edges, layer) {
 }
 
 function addAlignment(alignmentStr) {
+  console.clear();
   window.alignmentArr = [];
   if (alignmentStr === '') {
     return
   }
+  console.log(alignmentStr);
   let edgeStrArr = alignmentStr.split(' '),
       ESAlen = edgeStrArr.length;
   for (let i = 0; i < ESAlen; i++) {
-    let endpoints = edgeStrArr[i].split('-'),
+    let endpoints = edgeStrArr[i].split('-');
         from = 'top'+(parseInt(endpoints[0])+1),
         to = 'bottom'+(parseInt(endpoints[1])+1);
-    addRemoveEdge(window.edges, from, to);
+    if ((endpoints[0] === 'NaN') || (endpoints[1] === 'NaN')) {
+      continue
+    }
+    console.log(endpoints);
+    if (endpoints[0] === 'X') {
+      console.log('Colouring ', to);
+      colourNode(to, contentWordColour);
+      window.unaligned.add(to);
+    } else if (endpoints[1] === 'X') {
+      console.log('Colouring ', from);
+      colourNode(from, contentWordColour);
+      window.unaligned.add(from);
+    } else
+      addRemoveEdge(window.edges, from, to);
   }
+}
+
+function labelEnd(s) {
+  // top3 -> 2
+  // bottom1 -> 0
+  if (s.charAt(0) === 't')
+    return String(parseInt(s.slice('top'.length)) - 1)
+  else
+    return String(parseInt(s.slice('bottom'.length)) - 1)
 }
 
 function updateAlignment() {
@@ -182,6 +210,12 @@ function updateAlignment() {
     });
     pharaoStr = pharaoArr.reduce((el1, el2) => el1+' '+el2);
   }
+  window.unaligned.forEach(node => {
+    let pseudoEdge = (node.charAt(0) === 't') ? (labelEnd(node)+'-X') : ('X-'+labelEnd(node));
+    pharaoStr = pharaoStr + ' ' + pseudoEdge;
+  });
+
+  console.log(pharaoStr);
 
   let verified = $("input[name='verified']:checked").val();
 
@@ -197,7 +231,7 @@ function updateAlignment() {
         }));
   request.fail(() => {
     alert('Failed to update data on the server.');
-  })
+  });
 }
 
 function clearAlignment() {
@@ -207,8 +241,29 @@ function clearAlignment() {
   window.alignmentArr.splice(0);
 }
 
+function clearContentWords() {
+  $.each(window.nodes._data, (key, node) => {
+    colourNode(key, '#CDDC39');
+    window.unaligned.clear();
+  })
+}
+
+const contentWordColour = 'red';
+
+function colourNode(nodeID, colour) {
+  window.nodes.update({
+    id: nodeID,
+    color: colour
+  })
+}
+
 function addRemoveEdge(edges, from, to) {
   let edgeID = null;
+
+  // Ignore aligment bugs
+  if (!( window.nodeIDs.has(from) && window.nodeIDs.has(to) ))
+    return
+
   // Lexicographically 'topXXX' > 'bottomXXX';
   // 'topXXX' should go first
   if (from > to)
@@ -230,7 +285,11 @@ function addRemoveEdge(edges, from, to) {
       color: { color:'grey' },
       dashes: true
     });
-    window.alignmentArr.push(edgeID)
+    window.alignmentArr.push(edgeID);
+    colourNode(from, contentWordColour);
+    colourNode(to, contentWordColour);
+    window.unaligned.delete(from);
+    window.unaligned.delete(to);
   }
 }
 
@@ -238,7 +297,9 @@ let edgeArr = [];
 
 function clickHandler(params) {
   if (params.nodes.length !== 0) {
-    let nodeID = params.nodes[0];
+    let nodeID = window.network.getNodeAt(params.pointer.DOM);
+
+    // Add/remove edge
     if (edgeArr.length == 0)
       edgeArr.push(nodeID)
     else {
@@ -252,9 +313,30 @@ function clickHandler(params) {
         window.network.unselectAll();
       }
     }
-  } 
+  }
+  else
+    edgeArr = [];
 }
 
+function doubleClickHandler(params) {
+  if (params.nodes.length !== 0) {
+    let nodeID = window.network.getNodeAt(params.pointer.DOM);
+    // Toggle colour for content word
+    if (window.nodes._data[nodeID]['color'] === contentWordColour) {
+      window.nodes.update({
+        id: nodeID,
+        color: '#CDDC39'
+      });
+      window.unaligned.delete(nodeID);
+    } else {
+      window.nodes.update({
+        id: nodeID,
+        color: contentWordColour
+      });
+      window.unaligned.add(nodeID);
+    }
+  }
+}
 
 let nodesArr = [];
 window.nodes = new vis.DataSet(nodesArr);
@@ -265,29 +347,30 @@ window.edges = new vis.DataSet(edgesArr);
 // create a network
 let container = byID('mynetwork'),
     data = {
-  nodes: window.nodes,
-  edges: window.edges
-  },
-    options = {
-  physics:true,
-  edges: {
-    smooth: {
-      type: 'curvedCCW',
-      forceDirection: 'vertical'
-    }
-  },
-  nodes: {
-    mass: 10,
-    fixed: true,
-    font: {
-      size: 16
+      nodes: window.nodes,
+      edges: window.edges
     },
-    margin: 10,
-    color: '#CDDC39'
-  },
-};
+    options = {
+      physics:true,
+      edges: {
+        smooth: {
+          type: 'curvedCCW',
+          forceDirection: 'vertical'
+        }
+      },
+      nodes: {
+        mass: 10,
+        fixed: true,
+        font: {
+          size: 16
+        },
+        margin: 10,
+        color: '#CDDC39'
+    },
+  };
 
-document.addEventListener("DOMContentLoaded", function(event) {
+document.addEventListener("DOMContentLoaded", 
+                          (event) => {
   let request = $.get(requestURL + 'corpora');
   request.done(data => {
     $.each(data, (_, val) => {
@@ -302,4 +385,5 @@ document.addEventListener("DOMContentLoaded", function(event) {
   request.fail(() => { alert('Failed to fetch the list of corpora from the server.') });
   window.network = new vis.Network(container, data, options);
   window.network.on("click", (params) => { clickHandler(params); });
+  window.network.on("doubleClick", (params) => { doubleClickHandler(params); });
 });
